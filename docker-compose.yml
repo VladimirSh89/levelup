@@ -1,0 +1,29 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: levelup-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_USER: levelup
+      MYSQL_PASSWORD: levelup
+      MYSQL_DATABASE: levelup
+      MYSQL_ROOT_PASSWORD: levelup
+    command:
+      [
+        "--default-authentication-plugin=mysql_native_password",
+        "--character-set-server=utf8mb4",
+        "--collation-server=utf8mb4_unicode_ci",
+      ]
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init-test-db.sql:/docker-entrypoint-initdb.d/02-test-db.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "levelup", "-plevelup"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mysql_data:

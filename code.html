@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Level Up Barbershop | Cincinnati</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&amp;family=Hanken+Grotesk:wght@400&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#99907c",
+                        "on-secondary-container": "#ffdcd7",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "surface-variant": "#353534",
+                        "secondary": "#ffb4a8",
+                        "on-tertiary-container": "#444546",
+                        "on-primary-container": "#554300",
+                        "background": "#131313",
+                        "primary-fixed-dim": "#e9c349",
+                        "on-surface": "#e5e2e1",
+                        "surface-tint": "#e9c349",
+                        "primary-fixed": "#ffe088",
+                        "secondary-container": "#ce0301",
+                        "on-primary-fixed": "#241a00",
+                        "tertiary-container": "#b3b3b3",
+                        "on-tertiary": "#2f3131",
+                        "surface": "#131313",
+                        "surface-container-highest": "#353534",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "secondary-fixed-dim": "#ffb4a8",
+                        "on-primary-fixed-variant": "#574500",
+                        "error": "#ffb4ab",
+                        "on-error": "#690005",
+                        "on-surface-variant": "#d0c5af",
+                        "on-secondary": "#690000",
+                        "primary": "#f2ca50",
+                        "surface-container": "#201f1f",
+                        "surface-bright": "#3a3939",
+                        "on-background": "#e5e2e1",
+                        "surface-container-high": "#2a2a2a",
+                        "on-error-container": "#ffdad6",
+                        "inverse-surface": "#e5e2e1",
+                        "primary-container": "#d4af37",
+                        "surface-dim": "#131313",
+                        "surface-container-low": "#1c1b1b",
+                        "inverse-primary": "#735c00",
+                        "inverse-on-surface": "#313030",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#e3e2e2",
+                        "on-secondary-fixed": "#410000",
+                        "on-primary": "#3c2f00",
+                        "outline-variant": "#4d4635",
+                        "secondary-fixed": "#ffdad4",
+                        "tertiary": "#cfcece",
+                        "on-secondary-fixed-variant": "#930000",
+                        "surface-container-lowest": "#0e0e0e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "8px",
+                        "margin-mobile": "16px",
+                        "section-gap": "120px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Oswald"],
+                        "body-md": ["Hanken Grotesk"],
+                        "display-lg-mobile": ["Oswald"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-lg": ["Oswald"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "display-lg": ["Oswald"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg-mobile": ["48px", { "lineHeight": "52px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "headline-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "display-lg": ["80px", { "lineHeight": "88px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glow-hover:hover {
+            box-shadow: 0 0 15px rgba(242, 202, 80, 0.2);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased overflow-x-hidden selection:bg-primary selection:text-on-primary">
+<!-- TopNavBar (Shared Component) -->
+<header class="fixed top-0 w-full z-50 bg-background dark:bg-background border-b border-outline-variant shadow-[0_0_15px_rgba(242,202,80,0.1)]">
+<div class="flex justify-between items-center h-20 px-margin-mobile md:px-margin-desktop max-w-full mx-auto">
+<!-- Brand -->
+<a class="flex items-center gap-2" href="#">
+<img alt="Level Up Barbershop Logo" class="h-12 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeabEIOet9P9nZFsCO5xgvMBcBHg3Cnhb1hLRq_mNg328Abwc0n7wG6ce4h4w0-M7vwD2L0O_Mo-aMvKb3qNYsXd-rh6q_cd_vJWCtNeVaSvC_84IyGVGjv-7rTc7HSYj3mg2Pj3YlGZQUEdhv5vHQBd3lobNEkbkcT_Y9k6EtM8-9kh8Z9et3g_9-nG6ZdFXJDxxUMrHCIr6rE8mOq-Eo_kBIjyly8yZAAJyrlCvLU6ZaRHjmSQUvcHlNSmN-Ou_W3YkJGsQNoc3n"/>
+<span class="font-headline-lg text-headline-lg font-bold text-primary tracking-tighter hidden md:block">LEVEL UP</span>
+</a>
+<!-- Navigation Links (Desktop) -->
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps uppercase hover:bg-primary/10 transition-all duration-300 px-3 py-2" href="#services">Services</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps uppercase hover:bg-primary/10 transition-all duration-300 px-3 py-2" href="#barbers">Barbers</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps uppercase hover:bg-primary/10 transition-all duration-300 px-3 py-2" href="#booking">Booking</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps uppercase hover:bg-primary/10 transition-all duration-300 px-3 py-2" href="#locations">Locations</a>
+</nav>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-4">
+<div class="hidden md:flex text-on-surface-variant font-label-caps text-label-caps gap-2 items-center border-r border-outline-variant pr-4 mr-2">
+<span class="text-primary hover:text-primary-fixed cursor-pointer">EN</span>
+<span class="text-outline">/</span>
+<span class="hover:text-primary cursor-pointer">RU</span>
+</div>
+<button class="hidden md:flex items-center justify-center text-primary dark:text-primary hover:bg-primary/10 transition-all duration-300 p-2">
+<span class="material-symbols-outlined">location_on</span>
+</button>
+<a class="bg-primary text-on-primary px-6 py-2 font-label-caps text-label-caps uppercase tracking-wider border-2 border-primary hover:bg-primary-container hover:border-primary-fixed hover:shadow-[0_0_20px_rgba(242,202,80,0.3)] transition-all duration-300" href="#booking">BOOK NOW</a>
+</div>
+</div>
+</header>
+<!-- Hero Section -->
+<section class="relative min-h-screen flex items-center pt-20 overflow-hidden">
+<div class="absolute inset-0 w-full h-full z-0">
+<div class="bg-cover bg-center w-full h-full opacity-40 mix-blend-overlay" data-alt="A cinematic, high-contrast medium shot of an expert barber meticulously cutting a client's hair in a dark, premium barbershop setting. The scene is illuminated by dramatic overhead lighting, casting sharp shadows and highlighting the metallic gleam of the clippers. The overall aesthetic is moody, industrial, and highly masculine, utilizing a palette of deep charcoal gray and subtle warm gold accents. The atmosphere conveys intense focus and top-tier craftsmanship." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBMSjAxlvx1tVHVKklOAI4qkBr85j4hc_7Aw9HPEqHlx-ljJBUVjh5NrsdLOGgaq18XVLoG6gUgeYEY6-havs5_HUXDLpPlDB84WWx0hBIoG7oi6NrS8yF1NKXvfHhHA8XzeQ0PsrJGrG1Mi-tFwvpKHvaaMtpDkNgGGCIwt0-PgiKNFtUy-RDgXV4cTFdLeKumxUpflfwyTskLQMTBncsRqPBI7ZVRUItQW-GzJJDm8dutzv53BmSoSOCmBjnuvbwo0uf49D_QzPQl')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent"></div>
+</div>
+<div class="container mx-auto px-margin-mobile md:px-margin-desktop relative z-10 pt-20 pb-32">
+<div class="max-w-4xl">
+<div class="flex items-center gap-4 mb-6">
+<div class="flex text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<span class="text-on-surface-variant font-label-caps text-label-caps border-l border-outline-variant pl-4">EST. 2018</span>
+<span class="text-on-surface-variant font-label-caps text-label-caps border-l border-outline-variant pl-4 hidden md:inline-block">CINCINNATI, OH</span>
+</div>
+<h1 class="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-background uppercase mb-6 leading-none">
+                    LEVEL UP <br class="hidden md:block"/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-container">YOUR LOOK</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mb-10">
+                    Precision cuts. Expert shaves. Unapologetic authority. Experience Cincinnati's premier grooming destination where industrial craft meets premium luxury.
+                </p>
+<div class="flex flex-col sm:flex-row gap-4">
+<a class="bg-secondary-container text-on-secondary py-4 px-8 font-label-caps text-label-caps text-center uppercase tracking-[0.15em] border border-secondary-container hover:bg-error hover:text-on-error hover:shadow-[0_0_25px_rgba(206,3,1,0.4)] transition-all duration-300 flex items-center justify-center gap-2 group" href="#booking">
+                        BOOK APPOINTMENT
+                        <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<a class="border border-primary text-primary py-4 px-8 font-label-caps text-label-caps text-center uppercase tracking-[0.15em] hover:bg-primary/10 transition-all duration-300" href="#services">
+                        VIEW SERVICES
+                    </a>
+</div>
+</div>
+</div>
+</section>
+<!-- Services Section -->
+<section class="py-section-gap bg-surface relative border-t border-outline-variant" id="services">
+<div class="container mx-auto px-margin-mobile md:px-margin-desktop">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+<div>
+<span class="text-primary font-label-caps text-label-caps uppercase tracking-[0.2em] mb-4 block">// OUR EXPERTISE</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface uppercase">PRECISION SERVICES</h2>
+</div>
+<a class="text-primary hover:text-primary-fixed font-label-caps text-label-caps uppercase flex items-center gap-2 pb-2 border-b border-primary/30 hover:border-primary transition-colors" href="#booking">
+                    FULL MENU <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Service Card 1 -->
+<div class="bg-surface-container-high border-t-2 border-primary p-8 glow-hover transition-all duration-300 relative group cursor-pointer">
+<div class="absolute top-8 right-8 font-label-md text-label-md text-primary">$45</div>
+<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-6 group-hover:text-primary transition-colors" style="font-variation-settings: 'wght' 200;">content_cut</span>
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase mb-3">Signature Haircut</h3>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-3">Meticulous clipper and shear work tailored to your specific bone structure and style preference. Includes a hot towel neck shave.</p>
+</div>
+<!-- Service Card 2 -->
+<div class="bg-surface-container-high border-t-2 border-primary p-8 glow-hover transition-all duration-300 relative group cursor-pointer">
+<div class="absolute top-8 right-8 font-label-md text-label-md text-primary">$30</div>
+<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-6 group-hover:text-primary transition-colors" style="font-variation-settings: 'wght' 200;">face</span>
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase mb-3">Executive Beard Trim</h3>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-3">Sculpting, lining, and fading of the beard. Finished with straight razor detailing on the cheeks and neck, followed by premium beard oil.</p>
+</div>
+<!-- Service Card 3 -->
+<div class="bg-surface-container-high border-t-2 border-primary p-8 glow-hover transition-all duration-300 relative group cursor-pointer">
+<div class="absolute top-8 right-8 font-label-md text-label-md text-primary">$50</div>
+<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-6 group-hover:text-primary transition-colors" style="font-variation-settings: 'wght' 200;">water_drop</span>
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase mb-3">Hot Towel Shave</h3>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-3">The traditional barbering experience. Multiple hot towels, rich lather, and a flawlessly smooth straight razor shave.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer (Shared Component) -->
+<footer class="w-full py-16 bg-surface-container-lowest dark:bg-surface-container-lowest border-t-2 border-primary flex flex-col md:flex-row justify-between items-center px-margin-mobile md:px-margin-desktop gap-gutter">
+<div class="flex flex-col items-center md:items-start gap-4">
+<a class="font-headline-md text-headline-md text-primary uppercase" href="#">
+<img alt="Level Up Barbershop Logo" class="h-10 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeabEIOet9P9nZFsCO5xgvMBcBHg3Cnhb1hLRq_mNg328Abwc0n7wG6ce4h4w0-M7vwD2L0O_Mo-aMvKb3qNYsXd-rh6q_cd_vJWCtNeVaSvC_84IyGVGjv-7rTc7HSYj3mg2Pj3YlGZQUEdhv5vHQBd3lobNEkbkcT_Y9k6EtM8-9kh8Z9et3g_9-nG6ZdFXJDxxUMrHCIr6rE8mOq-Eo_kBIjyly8yZAAJyrlCvLU6ZaRHjmSQUvcHlNSmN-Ou_W3YkJGsQNoc3n"/>
+</a>
+<p class="font-body-md text-body-md text-on-surface-variant">© 2024 LEVEL UP BARBERSHOP. PRECISION &amp; AUTHORITY.</p>
+</div>
+<nav class="flex flex-wrap justify-center gap-6 font-label-caps text-label-caps uppercase">
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Terms of Service</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Cincinnati HQ</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Contact</a>
+</nav>
+<div class="flex items-center gap-4 text-on-surface-variant font-label-caps text-label-caps">
+<span class="text-primary hover:text-primary-fixed cursor-pointer">EN</span>
+<span class="text-outline">/</span>
+<span class="hover:text-primary cursor-pointer">RU</span>
+</div>
+</footer>
+</body></html>

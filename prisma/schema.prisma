@@ -1,0 +1,211 @@
+// Level Up Barbershop — MySQL (cPanel / local Docker)
+// Single-location today, multi-location ready (Location entity reserved).
+
+generator client {
+  provider      = "prisma-client-js"
+  // Default output → server/node_modules/.prisma/client (local + cPanel api root)
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  client
+  master
+  admin
+}
+
+enum Locale {
+  en
+  ru
+}
+
+enum AvailabilityOverrideType {
+  closed
+  custom_hours
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  completed
+  no_show
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  address   String   @db.Text
+  timezone  String   @default("America/New_York")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  masters  MasterProfile[]
+  settings ShopSettings?
+  holidays Holiday[]
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  phone           String?
+  role            Role      @default(client)
+  preferredLocale Locale    @default(en)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  masterProfile MasterProfile?
+  bookings      Booking[]      @relation("ClientBookings")
+}
+
+model MasterProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  locationId      String
+  bio             String?  @db.Text
+  photoUrl        String?
+  specialtyTags   Json     @default("[]")
+  instagramHandle String?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location             Location              @relation(fields: [locationId], references: [id])
+  masterServices       MasterService[]
+  availabilityRules    AvailabilityRule[]
+  availabilityOverrides AvailabilityOverride[]
+  bookings             Booking[]
+
+  @@index([locationId, isActive])
+}
+
+model Service {
+  id                   String   @id @default(cuid())
+  nameEn               String
+  nameRu               String
+  descriptionEn        String   @db.Text
+  descriptionRu        String   @db.Text
+  basePriceCents       Int
+  baseDurationMinutes  Int
+  category             String   @default("general")
+  icon                 String?
+  isActive             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  masterServices MasterService[]
+  bookingServices BookingService[]
+}
+
+model MasterService {
+  id                      String  @id @default(cuid())
+  masterId                String
+  serviceId               String
+  priceOverrideCents      Int?
+  durationOverrideMinutes Int?
+
+  master  MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  service Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([masterId, serviceId])
+}
+
+model AvailabilityRule {
+  id            String    @id @default(cuid())
+  masterId      String
+  dayOfWeek     Int
+  startTime     String
+  endTime       String
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+
+  master MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+
+  @@index([masterId, dayOfWeek])
+}
+
+model AvailabilityOverride {
+  id        String                    @id @default(cuid())
+  masterId  String
+  date      DateTime                  @db.Date
+  type      AvailabilityOverrideType
+  startTime String?
+  endTime   String?
+
+  master MasterProfile @relation(fields: [masterId], references: [id], onDelete: Cascade)
+
+  @@unique([masterId, date])
+}
+
+model Booking {
+  id                     String        @id @default(cuid())
+  clientUserId           String
+  masterId               String
+  status                 BookingStatus @default(pending)
+  startAt                DateTime
+  endAt                  DateTime
+  totalPriceCents        Int
+  cancellationDeadlineAt DateTime
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  cancelledAt            DateTime?
+
+  client   User             @relation("ClientBookings", fields: [clientUserId], references: [id])
+  master   MasterProfile    @relation(fields: [masterId], references: [id])
+  services BookingService[]
+
+  @@index([masterId, startAt, endAt])
+  @@index([clientUserId, startAt])
+  @@index([status, startAt])
+}
+
+model BookingService {
+  id                       String @id @default(cuid())
+  bookingId                String
+  serviceId                String
+  priceAtBookingCents      Int
+  durationAtBookingMinutes Int
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([bookingId])
+}
+
+model ShopSettings {
+  id                       String @id @default(cuid())
+  locationId               String @unique
+  businessName             String
+  address                  String @db.Text
+  timezone                 String @default("America/New_York")
+  cancellationCutoffHours  Int    @default(24)
+  contactPhone             String?
+  contactEmail             String?
+  defaultLocale            Locale @default(en)
+
+  location Location @relation(fields: [locationId], references: [id])
+}
+
+model Holiday {
+  id         String   @id @default(cuid())
+  locationId String
+  date       DateTime @db.Date
+  label      String
+  closesShop Boolean  @default(true)
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, date])
+}

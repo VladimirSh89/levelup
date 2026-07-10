@@ -1,0 +1,40 @@
+{
+  "name": "levelup-barbershop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Level Up Barbershop — booking site + admin/master panels (Cincinnati, OH)",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "db:push": "npm --prefix server run db:push",
+    "db:seed": "npm --prefix server run db:seed",
+    "db:generate": "npm --prefix server run db:generate",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev:mysql": "docker compose up -d mysql",
+    "test": "npm run test:unit && npm run test:api",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:api": "npm run db:push:test && mocha --config .mocharc.cjs",
+    "test:e2e": "playwright test",
+    "db:push:test": "node scripts/ensure-test-schema.mjs",
+    "deploy:prod": "bash scripts/deploy-prod.sh",
+    "deploy:check": "bash scripts/pre-deploy-checks.sh",
+    "smoke:prod": "PROD_BASE_URL=\"${PROD_BASE_URL:-${PROD_URL:-https://levelup.codebridgestudio.com}}\" bash scripts/run-smoke-tests.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@prisma/client": "^5.22.0",
+    "@types/chai": "^4.3.20",
+    "@types/express": "^4.17.21",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.0",
+    "@types/supertest": "^6.0.2",
+    "chai": "^4.5.0",
+    "concurrently": "^9.1.0",
+    "dotenv": "^16.4.7",
+    "mocha": "^10.8.2",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.6"
+  }
+}
