@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@/lib/utils';
+import { cn, resolveServiceIcon } from '@/lib/utils';
 import type { Service } from '@/types';
 
 interface ServiceMultiSelectProps {
@@ -56,7 +56,9 @@ export default function ServiceMultiSelect({
                   className="h-4 w-4 accent-primary"
                 />
                 {service.icon && (
-                  <span className="material-symbols-outlined text-[18px] text-primary">{service.icon}</span>
+                  <span className="material-symbols-outlined text-[18px] text-primary">
+                    {resolveServiceIcon(service.icon)}
+                  </span>
                 )}
                 <span className="min-w-0 flex-1 font-body text-body-md">{name}</span>
               </label>

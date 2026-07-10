@@ -55,7 +55,7 @@ export default function MobileGlassNav() {
     navigate(`/#${section}`);
   };
 
-  // Booking flow: collapsed — home only (expands full menu when leaving /book)
+  // Booking flow: collapsed — a compact "Home" pill (expands full menu when tapped)
   if (isBooking) {
     return (
       <nav
@@ -66,13 +66,20 @@ export default function MobileGlassNav() {
           type="button"
           onClick={goHome}
           aria-label={t('nav.home')}
-          initial={{ scale: 0.85, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="liquid-glass pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-primary"
+          layout
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+          className="liquid-glass pointer-events-auto flex items-center gap-2 rounded-full py-2.5 pl-3 pr-4 text-primary shadow-lg shadow-black/40"
         >
-          <span className="material-symbols-outlined text-[26px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            home
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 ring-1 ring-primary/40"
+          >
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              home
+            </span>
           </span>
+          <span className="font-label text-[11px] uppercase tracking-[0.14em]">{t('nav.home')}</span>
         </motion.button>
       </nav>
     );

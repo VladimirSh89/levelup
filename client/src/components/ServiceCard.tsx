@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import type { Service } from '@/types';
-import { cn, formatDuration, formatPriceCents, localizedService } from '@/lib/utils';
+import { cn, formatDuration, formatPriceCents, localizedService, resolveServiceIcon } from '@/lib/utils';
 
 interface ServiceCardProps {
   service: Service;
@@ -39,7 +39,7 @@ export default function ServiceCard({ service, selectable, selected, onSelect }:
         className="material-symbols-outlined mb-6 block text-4xl text-on-surface-variant transition-colors group-hover:text-primary"
         style={{ fontVariationSettings: "'wght' 200" }}
       >
-        {service.icon || 'content_cut'}
+        {resolveServiceIcon(service.icon)}
       </span>
 
       <h3 className="mb-3 font-headline text-headline-md uppercase text-on-surface">{name}</h3>

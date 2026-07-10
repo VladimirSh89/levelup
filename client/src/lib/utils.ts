@@ -2,6 +2,34 @@ export function cn(...classes: Array<string | false | null | undefined>): string
   return classes.filter(Boolean).join(' ');
 }
 
+/**
+ * Map legacy / invalid service icon names to valid Material Symbols so the
+ * glyph renders instead of raw ligature text (e.g. old DB rows).
+ */
+const ICON_ALIASES: Record<string, string> = {
+  scissors: 'content_cut',
+  cut: 'content_cut',
+  haircut: 'content_cut',
+  razor: 'face',
+  beard: 'face',
+  shave: 'face',
+  combo: 'auto_awesome',
+  package: 'auto_awesome',
+  premium: 'workspace_premium',
+  shampoo: 'water_drop',
+  wash: 'water_drop',
+  kids: 'child_care',
+  child: 'child_care',
+};
+
+export function resolveServiceIcon(icon?: string | null): string {
+  if (!icon) return 'content_cut';
+  const key = icon.trim().toLowerCase();
+  if (ICON_ALIASES[key]) return ICON_ALIASES[key];
+  // Valid Material Symbols use snake_case a-z; anything with spaces/caps is likely a label
+  return /^[a-z0-9_]+$/.test(key) ? key : 'content_cut';
+}
+
 /** Resolve service name/description for the active UI locale. */
 export function localizedService(
   service: {
