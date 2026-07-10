@@ -55,35 +55,9 @@ export default function MobileGlassNav() {
     navigate(`/#${section}`);
   };
 
-  // Booking flow: collapsed — a compact "Home" pill (expands full menu when tapped)
-  if (isBooking) {
-    return (
-      <nav
-        aria-label={t('nav.menu')}
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
-      >
-        <motion.button
-          type="button"
-          onClick={goHome}
-          aria-label={t('nav.home')}
-          layout
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-          className="liquid-glass pointer-events-auto flex items-center gap-2 rounded-full py-2.5 pl-3 pr-4 text-primary shadow-lg shadow-black/40"
-        >
-          <span
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 ring-1 ring-primary/40"
-          >
-            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-              home
-            </span>
-          </span>
-          <span className="font-label text-[11px] uppercase tracking-[0.14em]">{t('nav.home')}</span>
-        </motion.button>
-      </nav>
-    );
-  }
+  // Booking flow: the sticky booking bar owns the bottom edge (incl. a Home
+  // button), so the floating nav is hidden here to avoid a see-through gap.
+  if (isBooking) return null;
 
   const tabs = [
     {

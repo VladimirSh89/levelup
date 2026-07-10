@@ -8,6 +8,12 @@ import { Role } from "@prisma/client";
 import { requireAuth, type AuthedRequest } from "../lib/auth";
 import { prisma } from "../lib/prisma";
 
+// sharp/libvips defaults to a thread pool sized to the host CPU count. On
+// CloudLinux/cPanel the NPROC limit counts threads, so an unbounded pool can
+// blow past the process cap. Pin it to a single worker and disable the cache.
+sharp.concurrency(1);
+sharp.cache(false);
+
 const router = Router();
 
 const UPLOAD_DIR = path.resolve(__dirname, "..", "..", "uploads", "masters");
@@ -82,7 +88,7 @@ router.post("/photo", async (req: AuthedRequest, res, next) => {
     .toFile(absPath);
 
   res.status(201).json({
-    url: `/uploads/masters/${filename}`,
+    url: `/api/uploads/masters/${filename}`,
     size,
     width: size,
     height: size,

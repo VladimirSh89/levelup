@@ -32,7 +32,11 @@ export function createApp(): Express {
 
   app.use(express.json({ limit: "1mb" }));
 
-  app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
+  // Served under /api so the Passenger sub-URI (/api) routes it to this app in
+  // production. /uploads kept as an alias for the Vite dev proxy / legacy URLs.
+  const uploadsStatic = express.static(path.resolve(__dirname, "..", "uploads"));
+  app.use("/api/uploads", uploadsStatic);
+  app.use("/uploads", uploadsStatic);
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, ts: new Date().toISOString() });
@@ -42,8 +46,10 @@ export function createApp(): Express {
   app.use("/api/masters", mastersRouter);
   app.use("/api/bookings", bookingsRouter);
   app.use("/api/master-panel", masterPanelRouter);
-  app.use("/api/admin", adminRouter);
+  // Mount upload before the admin router so its own owner/admin gate applies
+  // (the admin router's admin-only guard would otherwise 403 owner-masters).
   app.use("/api/admin/upload", uploadRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api", publicRouter);
 
   app.use((req, res) => {

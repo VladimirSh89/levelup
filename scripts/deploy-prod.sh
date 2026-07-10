@@ -197,12 +197,30 @@ else
   echo 'Skipping npm ci (node_modules up to date)'
 fi
 
-# Hard timeout — never leave hung prisma eating NPROC
-timeout 60s npm exec -- prisma generate --schema ./prisma/schema.prisma
+# Generate the client only when it's actually missing. Prisma's engine sidecar
+# is NPROC-heavy; regenerating on every deploy risks piling up stuck processes.
+if [[ ! -d node_modules/.prisma/client ]]; then
+  echo 'Generating Prisma client…'
+  timeout -k 5s 60s ./node_modules/.bin/prisma generate --schema ./prisma/schema.prisma || echo 'WARN: prisma generate failed'
+else
+  echo 'Skipping prisma generate (client present)'
+fi
+# Always reap any lingering prisma engine/CLI processes so they can't accumulate
+# across deploys and exhaust the NPROC limit.
+pkill -9 -f "prisma" 2>/dev/null || true
+pkill -9 -f "query-engine" 2>/dev/null || true
 
-# Schema sync with timeout (skip if it stalls; use SQL/migrations offline instead)
-if ! timeout 45s npm exec -- prisma db push --schema ./prisma/schema.prisma --skip-generate --accept-data-loss; then
-  echo 'WARN: prisma db push timed out or failed — continuing (check schema manually)'
+# Schema sync is OPT-IN only (SCHEMA_SYNC=1). `prisma db push` has repeatedly
+# hung here, orphaning query engines that starve NPROC + MariaDB connections.
+# The schema is managed manually via SQL; keep it out of the hot deploy path.
+if [[ "\${SCHEMA_SYNC:-}" == "1" ]]; then
+  echo 'SCHEMA_SYNC=1 — running prisma db push…'
+  timeout -k 5s 45s ./node_modules/.bin/prisma db push --schema ./prisma/schema.prisma --skip-generate --accept-data-loss \
+    || echo 'WARN: prisma db push timed out/failed — check schema manually'
+  pkill -9 -f "prisma" 2>/dev/null || true
+  pkill -9 -f "query-engine" 2>/dev/null || true
+else
+  echo 'Skipping prisma db push (set SCHEMA_SYNC=1 to enable)'
 fi
 
 # Optional seed: SEED_ON_DEPLOY=1 npm run deploy:prod

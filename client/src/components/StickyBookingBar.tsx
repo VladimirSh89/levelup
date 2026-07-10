@@ -7,6 +7,7 @@ interface StickyBookingBarProps {
   totalPriceCents?: number;
   totalDurationMinutes?: number;
   onBack?: () => void;
+  onHome?: () => void;
   onContinue?: () => void;
   continueLabel?: string;
   continueDisabled?: boolean;
@@ -20,6 +21,7 @@ export default function StickyBookingBar({
   totalPriceCents,
   totalDurationMinutes,
   onBack,
+  onHome,
   onContinue,
   continueLabel,
   continueDisabled,
@@ -31,9 +33,21 @@ export default function StickyBookingBar({
   const { t } = useTranslation();
 
   return (
-    <div className="fixed inset-x-0 bottom-[4.75rem] z-40 border-t-2 border-primary bg-surface-container-lowest/98 backdrop-blur-sm md:bottom-0 md:pb-0 pb-0">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-primary bg-surface-container-lowest/80 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
       <div className="container-page flex items-center justify-between gap-3 py-3 md:gap-4 md:py-4">
-        <div className="flex min-w-0 flex-1 items-center gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+          {onHome && (
+            <button
+              type="button"
+              onClick={onHome}
+              aria-label={t('nav.home')}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary ring-1 ring-primary/40 transition-colors hover:bg-primary/25 md:hidden"
+            >
+              <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                home
+              </span>
+            </button>
+          )}
           {showBack && onBack && (
             <button
               type="button"

@@ -261,6 +261,7 @@ export default function BookingPage() {
       <StickyBookingBar
         showBack={draft.step > 1}
         onBack={handleBack}
+        onHome={() => navigate('/')}
         onContinue={handleContinue}
         continueDisabled={!canContinueFrom[draft.step]}
         continueLoading={draft.step === 4 && createBooking.isPending}
