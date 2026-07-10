@@ -2,6 +2,28 @@ export function cn(...classes: Array<string | false | null | undefined>): string
   return classes.filter(Boolean).join(' ');
 }
 
+/** Resolve service name/description for the active UI locale. */
+export function localizedService(
+  service: {
+    name?: string;
+    description?: string;
+    nameEn?: string;
+    nameRu?: string;
+    descriptionEn?: string;
+    descriptionRu?: string;
+  },
+  locale: string,
+): { name: string; description: string } {
+  const ru = locale.startsWith('ru');
+  return {
+    name: (ru ? service.nameRu || service.name || service.nameEn : service.nameEn || service.name) || '',
+    description:
+      (ru
+        ? service.descriptionRu || service.description || service.descriptionEn
+        : service.descriptionEn || service.description) || '',
+  };
+}
+
 export function formatPriceCents(cents: number): string {
   return `$${(cents / 100).toFixed(0)}`;
 }

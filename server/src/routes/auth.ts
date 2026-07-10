@@ -11,6 +11,18 @@ const router = Router();
 
 const BCRYPT_ROUNDS = 10;
 
+async function serializeAuthUser(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { masterProfile: true },
+  });
+  if (!user) return null;
+  return serializeUser(user, {
+    isOwner: user.masterProfile?.isOwner ?? false,
+    masterId: user.masterProfile?.id ?? null,
+  });
+}
+
 const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email("A valid email is required"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -45,7 +57,8 @@ router.post("/register", async (req, res) => {
   });
 
   const token = signAuthToken({ sub: user.id, role: user.role, email: user.email });
-  res.status(201).json({ token, user: serializeUser(user) });
+  const payload = await serializeAuthUser(user.id);
+  res.status(201).json({ token, user: payload });
 });
 
 const loginSchema = z.object({
@@ -73,7 +86,8 @@ router.post("/login", async (req, res) => {
   }
 
   const token = signAuthToken({ sub: user.id, role: user.role, email: user.email });
-  res.json({ token, user: serializeUser(user) });
+  const payload = await serializeAuthUser(user.id);
+  res.json({ token, user: payload });
 });
 
 /** JWTs are stateless — logout is a client-side token discard. Kept for a consistent API surface. */
@@ -82,12 +96,12 @@ router.post("/logout", (_req, res) => {
 });
 
 router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.auth!.sub } });
-  if (!user) {
+  const payload = await serializeAuthUser(req.auth!.sub);
+  if (!payload) {
     res.status(404).json({ error: "User not found" });
     return;
   }
-  res.json({ user: serializeUser(user) });
+  res.json({ user: payload });
 });
 
 export default router;

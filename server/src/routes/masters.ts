@@ -9,13 +9,21 @@ const router = Router();
 const MONTH_RE = /^\d{4}-\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
+  const locale = parseLocale(req);
   const masters = await prisma.masterProfile.findMany({
     where: { isActive: true },
-    include: { user: true },
+    include: {
+      user: true,
+      masterServices: {
+        where: { service: { isActive: true } },
+        include: { service: true },
+        orderBy: { service: { sortOrder: "asc" } },
+      },
+    },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
-  res.json({ masters: masters.map(serializeMasterPublic) });
+  res.json({ masters: masters.map((m) => serializeMasterPublic(m, locale)) });
 });
 
 router.get("/:id/services", async (req, res) => {

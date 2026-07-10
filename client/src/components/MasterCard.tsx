@@ -11,7 +11,11 @@ interface MasterCardProps {
 }
 
 export default function MasterCard({ master, selectable, selected, onSelect }: MasterCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const displayName =
+    i18n.language?.startsWith('ru')
+      ? master.nameRu || master.name
+      : master.nameEn || master.name;
 
   const cardClassName = cn(
     'group relative flex w-full flex-col items-center border border-outline-variant bg-surface-container-high p-8 text-center transition-all duration-300 glow-hover cursor-pointer',
@@ -33,13 +37,13 @@ export default function MasterCard({ master, selectable, selected, onSelect }: M
         )}
       >
         {master.photoUrl ? (
-          <img src={master.photoUrl} alt={master.name} className="h-full w-full rounded-full object-cover" />
+          <img src={master.photoUrl} alt={displayName} className="h-full w-full rounded-full object-cover" />
         ) : (
-          <span>{initials(master.name)}</span>
+          <span>{initials(displayName)}</span>
         )}
       </div>
 
-      <h3 className="font-headline text-headline-md uppercase text-on-surface">{master.name}</h3>
+      <h3 className="font-headline text-headline-md uppercase text-on-surface">{displayName}</h3>
 
       {master.rating && (
         <div className="mt-1 flex items-center gap-1 text-primary">

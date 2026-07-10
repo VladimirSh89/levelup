@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import LogoReveal from '@/components/LogoReveal';
 import TopNav from '@/components/TopNav';
+import MobileGlassNav from '@/components/MobileGlassNav';
 import Footer from '@/components/Footer';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -12,6 +13,7 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import AccountPage from '@/pages/AccountPage';
 import MasterPanel from '@/pages/MasterPanel';
+import MasterTeamPage from '@/pages/MasterTeamPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 import AdminLayout from '@/pages/admin/AdminLayout';
@@ -25,8 +27,11 @@ function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <TopNav />
-      <main className="flex-1 pt-20">{children}</main>
+      <main className="flex-1 pb-28 pt-[calc(4.5rem+env(safe-area-inset-top))] md:pb-0 md:pt-20">
+        {children}
+      </main>
       <Footer />
+      <MobileGlassNav />
     </div>
   );
 }
@@ -35,7 +40,10 @@ function BookingLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <TopNav />
-      <main className="flex-1 pb-28 pt-20">{children}</main>
+      <main className="flex-1 pb-32 pt-[calc(4.5rem+env(safe-area-inset-top))] md:pb-28 md:pt-20">
+        {children}
+      </main>
+      <MobileGlassNav />
     </div>
   );
 }
@@ -98,6 +106,17 @@ export default function App() {
             <ProtectedRoute roles={['master']}>
               <SiteLayout>
                 <MasterPanel />
+              </SiteLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/master/team"
+          element={
+            <ProtectedRoute roles={['master']}>
+              <SiteLayout>
+                <MasterTeamPage />
               </SiteLayout>
             </ProtectedRoute>
           }

@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import Button from '@/components/Button';
+import FormField from '@/components/FormField';
 import { adminApi } from '@/lib/api';
 import { cn, formatDateTimeLabel, formatPriceCents } from '@/lib/utils';
 import type { Booking, BookingStatus } from '@/types';
@@ -16,12 +18,26 @@ const STATUS_KEY: Record<BookingStatus, string> = {
   no_show: 'account.statusNoShow',
 };
 
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function BookingsPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('ru') ? 'ru' : 'en';
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [editing, setEditing] = useState<Booking | null>(null);
+  const [editStatus, setEditStatus] = useState<BookingStatus>('confirmed');
+  const [editStartAt, setEditStartAt] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const { data } = useQuery({
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'bookings'] });
+
+  const { data, isLoading } = useQuery({
     queryKey: ['admin', 'bookings', statusFilter],
     queryFn: async () => {
       try {
@@ -34,7 +50,48 @@ export default function BookingsPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (payload: { id: string; status: BookingStatus; startAt: string }) =>
+      adminApi.bookings.update(payload.id, {
+        status: payload.status,
+        startAt: new Date(payload.startAt).toISOString(),
+      }),
+    onSuccess: () => {
+      invalidate();
+      setEditing(null);
+      setError(null);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => adminApi.bookings.remove(id),
+    onSuccess: () => {
+      invalidate();
+      if (editing) setEditing(null);
+    },
+  });
+
   const bookings = data ?? [];
+
+  const openEdit = (booking: Booking) => {
+    setEditing(booking);
+    setEditStatus(booking.status);
+    setEditStartAt(toDatetimeLocalValue(booking.startAt));
+    setError(null);
+  };
+
+  const handleSave = (e: FormEvent) => {
+    e.preventDefault();
+    if (!editing || !editStartAt) return;
+    updateMutation.mutate({ id: editing.id, status: editStatus, startAt: editStartAt });
+  };
+
+  const handleDelete = (booking: Booking) => {
+    const label = booking.client?.name ?? booking.id;
+    if (!window.confirm(t('admin.bookings.deleteConfirm', { name: label }))) return;
+    removeMutation.mutate(booking.id);
+  };
 
   return (
     <div>
@@ -55,7 +112,9 @@ export default function BookingsPage() {
         </select>
       </div>
 
-      {bookings.length === 0 ? (
+      {isLoading ? (
+        <p className="font-body text-body-md text-on-surface-variant">{t('common.loading')}</p>
+      ) : bookings.length === 0 ? (
         <div className="border border-outline-variant bg-surface-container-low p-8 text-center font-body text-body-md text-on-surface-variant">
           {t('admin.bookings.empty')}
         </div>
@@ -69,12 +128,18 @@ export default function BookingsPage() {
                 <th className="px-4 py-3">{t('admin.bookings.dateTime')}</th>
                 <th className="px-4 py-3">{t('admin.bookings.total')}</th>
                 <th className="px-4 py-3">{t('admin.bookings.status')}</th>
+                <th className="px-4 py-3">{t('admin.bookings.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {bookings.map((booking) => (
                 <tr key={booking.id} className="border-t border-outline-variant font-body text-body-md text-on-surface">
-                  <td className="px-4 py-3">{booking.client?.name ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <div>{booking.client?.name ?? '—'}</div>
+                    {booking.client?.phone && (
+                      <div className="font-label text-[11px] text-on-surface-variant">{booking.client.phone}</div>
+                    )}
+                  </td>
                   <td className="px-4 py-3">{booking.master?.name ?? t('master.any')}</td>
                   <td className="px-4 py-3">{formatDateTimeLabel(booking.startAt, locale)}</td>
                   <td className="px-4 py-3 font-label text-primary">{formatPriceCents(booking.totalPriceCents)}</td>
@@ -90,10 +155,82 @@ export default function BookingsPage() {
                       {t(STATUS_KEY[booking.status])}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(booking)}
+                        className="font-label text-[11px] uppercase text-primary hover:underline"
+                      >
+                        {t('common.edit')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(booking)}
+                        disabled={removeMutation.isPending}
+                        className="font-label text-[11px] uppercase text-error hover:underline"
+                      >
+                        {t('common.delete')}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md border-t-2 border-primary bg-surface-container-high p-8">
+            <h2 className="mb-6 font-headline text-headline-md uppercase text-on-surface">
+              {t('admin.bookings.edit')}
+            </h2>
+            <form onSubmit={handleSave} className="space-y-4">
+              <p className="font-body text-body-md text-on-surface">
+                {editing.client?.name ?? '—'}
+                {editing.master?.name ? ` · ${editing.master.name}` : ''}
+              </p>
+
+              <label className="block">
+                <span className="mb-2 block font-label text-label-caps uppercase text-on-surface-variant">
+                  {t('admin.bookings.status')}
+                </span>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as BookingStatus)}
+                  className="w-full border border-outline-variant bg-surface-container-low px-4 py-3 font-body text-body-md text-on-surface outline-none focus:border-primary"
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {t(STATUS_KEY[status])}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <FormField
+                label={t('admin.bookings.dateTime')}
+                name="startAt"
+                type="datetime-local"
+                value={editStartAt}
+                onChange={setEditStartAt}
+                required
+              />
+
+              {error && <p className="font-body text-[13px] text-error">{error}</p>}
+
+              <div className="flex gap-3 pt-2">
+                <Button type="submit" variant="primary" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? '…' : t('common.save')}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
+                  {t('common.cancel')}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

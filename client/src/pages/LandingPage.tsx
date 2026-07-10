@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 
@@ -17,15 +18,26 @@ const fadeUp = {
 };
 
 export default function LandingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('ru') ? 'ru' : 'en';
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const id = location.hash;
+    const timer = window.setTimeout(() => {
+      document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [location.hash]);
 
   const { data: services } = useQuery({
-    queryKey: ['services'],
+    queryKey: ['services', locale],
     queryFn: servicesApi.list,
   });
 
   const { data: masters } = useQuery({
-    queryKey: ['masters'],
+    queryKey: ['masters', locale],
     queryFn: mastersApi.list,
   });
 
@@ -34,17 +46,16 @@ export default function LandingPage() {
 
   return (
     <div>
-      {/* HERO */}
+      {/* HERO — real shop ceiling + LED honeycomb */}
       <section className="relative flex min-h-[calc(100vh-80px)] items-center overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <div
-            className="h-full w-full bg-cover bg-center opacity-40 mix-blend-overlay"
-            style={{
-              backgroundImage:
-                "url('https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=1600&q=80')",
-            }}
+          <img
+            src="/images/shop-ceiling.png"
+            alt=""
+            className="h-full w-full object-cover object-[center_20%] scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-background/70 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-transparent to-background/40" />
         </div>
 
         <div className="container-page relative z-10 py-24">
@@ -198,9 +209,26 @@ export default function LandingPage() {
           <motion.div {...fadeUp}>
             <span className="eyebrow mb-4">{t('home.locationsEyebrow')}</span>
             <h2 className="mb-6 font-headline text-headline-lg uppercase text-on-surface">{t('home.locationsTitle')}</h2>
-            <p className="mb-8 flex items-start gap-2 font-body text-body-lg text-on-surface-variant">
+            <p className="mb-4 flex items-start gap-2 font-body text-body-lg text-on-surface-variant">
               <span className="material-symbols-outlined text-primary">location_on</span>
               {t('home.locationsAddress')}
+            </p>
+            <p className="mb-4 flex items-center gap-2 font-body text-body-lg text-on-surface-variant">
+              <span className="material-symbols-outlined text-primary">call</span>
+              <a href="tel:+15136683522" className="transition-colors hover:text-primary">
+                {t('home.locationsPhone')}
+              </a>
+            </p>
+            <p className="mb-8 flex items-center gap-2 font-body text-body-lg text-on-surface-variant">
+              <span className="material-symbols-outlined text-primary">photo_camera</span>
+              <a
+                href="https://instagram.com/shaxa__24"
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-primary"
+              >
+                {t('home.locationsInstagramCta')} — {t('home.locationsInstagram')}
+              </a>
             </p>
 
             <div className="mb-8 border border-outline-variant p-6">
@@ -212,7 +240,13 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            <Button as="a" href="https://maps.google.com" target="_blank" rel="noreferrer" variant="ghost">
+            <Button
+              as="a"
+              href="https://www.google.com/maps/place/Level+Up+Barbershop/@39.3117064,-84.3779102,17z/data=!3m1!4b1!4m6!3m5!1s0x884051007f70ca5b:0x4b3cdd1b32b2b137!8m2!3d39.3117064!4d-84.3779102!16s%2Fg%2F11yr38ztkg"
+              target="_blank"
+              rel="noreferrer"
+              variant="ghost"
+            >
               {t('home.locationsGetDirections')}
               <span className="material-symbols-outlined text-[18px]">north_east</span>
             </Button>
@@ -220,9 +254,16 @@ export default function LandingPage() {
 
           <motion.div
             {...fadeUp}
-            className="flex min-h-[320px] items-center justify-center border border-outline-variant bg-surface-container-high"
+            className="min-h-[320px] overflow-hidden border border-outline-variant bg-surface-container-high"
           >
-            <span className="material-symbols-outlined text-6xl text-outline">map</span>
+            <iframe
+              title="Level Up Barbershop on Google Maps"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3089.8!2d-84.3804851!3d39.3117064!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x884051007f70ca5b%3A0x4b3cdd1b32b2b137!2sLevel%20Up%20Barbershop!5e0!3m2!1sen!2sus!4v1720620000000!5m2!1sen!2sus"
+              className="h-full min-h-[320px] w-full border-0 grayscale-[20%] contrast-110"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
           </motion.div>
         </div>
       </section>

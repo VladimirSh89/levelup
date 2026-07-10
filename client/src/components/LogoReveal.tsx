@@ -39,7 +39,7 @@ export default function LogoReveal() {
             transition={{ duration: reduced ? 0.1 : 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center gap-4"
           >
-            <Logo className="h-20 w-20" />
+            <Logo className="h-24 w-16" animate />
             <span className="font-headline text-headline-md text-primary tracking-[0.2em]">LEVEL UP</span>
           </motion.div>
         </motion.div>

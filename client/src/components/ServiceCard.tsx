@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import type { Service } from '@/types';
-import { cn, formatDuration, formatPriceCents } from '@/lib/utils';
+import { cn, formatDuration, formatPriceCents, localizedService } from '@/lib/utils';
 
 interface ServiceCardProps {
   service: Service;
@@ -13,13 +13,7 @@ interface ServiceCardProps {
 export default function ServiceCard({ service, selectable, selected, onSelect }: ServiceCardProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('ru') ? 'ru' : 'en';
-  const name =
-    service.name || (locale === 'ru' ? service.nameRu : service.nameEn) || service.nameEn || '';
-  const description =
-    service.description ||
-    (locale === 'ru' ? service.descriptionRu : service.descriptionEn) ||
-    service.descriptionEn ||
-    '';
+  const { name, description } = localizedService(service, locale);
   const priceCents = service.priceCents ?? service.basePriceCents;
   const durationMinutes = service.durationMinutes ?? service.baseDurationMinutes;
 

@@ -1,7 +1,9 @@
 import type { Booking, BookingService, Location, MasterProfile, Service, User } from "@prisma/client";
-import { Locale, pickLocale } from "./locale";
+import { Locale } from "@prisma/client";
+import { pickLocale } from "./locale";
+import type { Locale as LocaleType } from "./locale";
 
-export function serializeUser(user: User) {
+export function serializeUser(user: User, extras?: { isOwner?: boolean; masterId?: string | null }) {
   return {
     id: user.id,
     email: user.email,
@@ -10,14 +12,20 @@ export function serializeUser(user: User) {
     role: user.role,
     preferredLocale: user.preferredLocale,
     createdAt: user.createdAt,
+    isOwner: extras?.isOwner ?? false,
+    masterId: extras?.masterId ?? null,
   };
 }
 
-export function serializeService(service: Service, locale: Locale) {
+export function serializeService(service: Service, locale: LocaleType) {
   return {
     id: service.id,
     name: pickLocale(locale, service.nameEn, service.nameRu),
     description: pickLocale(locale, service.descriptionEn, service.descriptionRu),
+    nameEn: service.nameEn,
+    nameRu: service.nameRu,
+    descriptionEn: service.descriptionEn,
+    descriptionRu: service.descriptionRu,
     basePriceCents: service.basePriceCents,
     baseDurationMinutes: service.baseDurationMinutes,
     category: service.category,
@@ -43,19 +51,37 @@ export function serializeServiceAdmin(service: Service) {
   };
 }
 
-export function serializeMasterPublic(master: MasterProfile & { user: User }) {
+export function serializeMasterPublic(
+  master: MasterProfile & {
+    user: User;
+    masterServices?: Array<{ service: Service }>;
+  },
+  locale: Locale = Locale.en,
+) {
+  const serviceTags =
+    master.masterServices?.map((link) => pickLocale(locale, link.service.nameEn, link.service.nameRu)) ?? null;
+
   return {
     id: master.id,
-    name: master.user.name,
+    name: pickLocale(locale, master.user.name, master.nameRu ?? master.user.name),
+    nameEn: master.user.name,
+    nameRu: master.nameRu ?? master.user.name,
     bio: master.bio,
     photoUrl: master.photoUrl,
-    specialtyTags: master.specialtyTags,
+    specialtyTags: serviceTags ?? master.specialtyTags,
+    serviceIds: master.masterServices?.map((link) => link.service.id) ?? [],
     instagramHandle: master.instagramHandle,
     sortOrder: master.sortOrder,
   };
 }
 
-export function serializeMasterAdmin(master: MasterProfile & { user: User; location?: Location }) {
+export function serializeMasterAdmin(
+  master: MasterProfile & {
+    user: User;
+    location?: Location;
+    masterServices?: Array<{ serviceId: string; service?: Service }>;
+  },
+) {
   return {
     id: master.id,
     userId: master.userId,
@@ -63,12 +89,15 @@ export function serializeMasterAdmin(master: MasterProfile & { user: User; locat
     locationName: master.location?.name,
     email: master.user.email,
     name: master.user.name,
+    nameRu: master.nameRu,
     phone: master.user.phone,
     bio: master.bio,
     photoUrl: master.photoUrl,
     specialtyTags: master.specialtyTags,
+    serviceIds: master.masterServices?.map((link) => link.serviceId) ?? [],
     instagramHandle: master.instagramHandle,
     isActive: master.isActive,
+    isOwner: master.isOwner,
     sortOrder: master.sortOrder,
     createdAt: master.createdAt,
   };
@@ -93,7 +122,7 @@ export function serializeBooking(booking: BookingWithRelations, locale: Locale, 
     cancelledAt: booking.cancelledAt,
     master: {
       id: booking.master.id,
-      name: booking.master.user.name,
+      name: pickLocale(locale, booking.master.user.name, booking.master.nameRu ?? booking.master.user.name),
       photoUrl: booking.master.photoUrl,
     },
     location: booking.master.location

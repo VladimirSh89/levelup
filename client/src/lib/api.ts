@@ -1,6 +1,7 @@
 import type {
   AuthResponse,
   Booking,
+  BookingStatus,
   DashboardStats,
   Locale,
   MasterProfile,
@@ -31,14 +32,20 @@ export class ApiRequestError extends Error {
 }
 
 function currentLocale(): Locale {
-  const lang = localStorage.getItem('i18nextLng') || 'en';
+  const lang =
+    localStorage.getItem('levelup.locale') ||
+    localStorage.getItem('i18nextLng') ||
+    'en';
   return lang.startsWith('ru') ? 'ru' : 'en';
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers = new Headers(options.headers);
-  if (!headers.has('Content-Type') && options.body) headers.set('Content-Type', 'application/json');
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  if (!headers.has('Content-Type') && options.body && !isFormData) {
+    headers.set('Content-Type', 'application/json');
+  }
   headers.set('Accept-Language', currentLocale());
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
@@ -107,14 +114,79 @@ export const bookingsApi = {
 };
 
 export const masterPanelApi = {
+  me: () =>
+    get<{ master: { id: string; name: string; nameRu?: string | null; photoUrl?: string | null; timezone: string } }>(
+      '/master-panel/me',
+    ).then((r) => r.master),
+  services: () => get<{ services: Service[] }>('/master-panel/services').then((r) => r.services),
+  slots: (date: string, serviceIds: string[]) =>
+    get<{ slots: string[] }>(
+      `/master-panel/slots?date=${encodeURIComponent(date)}&serviceIds=${encodeURIComponent(serviceIds.join(','))}`,
+    ).then((r) => r.slots),
   bookings: () => get<{ bookings: Booking[] }>('/master-panel/bookings').then((r) => r.bookings),
-  getAvailability: () => get<{ rules: unknown[]; overrides: unknown[] }>('/master-panel/availability'),
-  putAvailability: (data: { rules: unknown[]; overrides: unknown[] }) =>
-    put('/master-panel/availability', data),
+  createBooking: (data: {
+    clientName: string;
+    clientPhone: string;
+    clientEmail?: string;
+    serviceIds: string[];
+    startAt: string;
+  }) => post<{ booking: Booking }>('/master-panel/bookings', data).then((r) => r.booking),
+  getAvailability: () =>
+    get<{
+      rules: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+      overrides: Array<{ date: string; type: string; startTime?: string | null; endTime?: string | null }>;
+    }>('/master-panel/availability'),
+  putAvailability: (data: {
+    rules: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+    overrides?: Array<{ date: string; type: string; startTime?: string; endTime?: string }>;
+  }) => put('/master-panel/availability', data),
+  setDayAvailability: (data: {
+    date: string;
+    action: 'closed' | 'open' | 'clear';
+    startTime?: string;
+    endTime?: string;
+  }) =>
+    put<{
+      overrides: Array<{ date: string; type: string; startTime?: string | null; endTime?: string | null }>;
+    }>('/master-panel/availability/day', data),
+  uploadPhoto,
+  team: {
+    list: () => get<{ masters: MasterProfile[] }>('/master-panel/team').then((r) => r.masters),
+    services: () => get<{ services: Service[] }>('/master-panel/team/services').then((r) => r.services),
+    create: (data: Record<string, unknown>) =>
+      post<{ master: MasterProfile }>('/master-panel/team', data).then((r) => r.master),
+    update: (id: string, data: Record<string, unknown>) =>
+      patch<{ master: MasterProfile }>(`/master-panel/team/${id}`, data).then((r) => r.master),
+    remove: (id: string) => del<void>(`/master-panel/team/${id}`),
+    getAvailability: (id: string) =>
+      get<{
+        rules: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+        overrides: Array<{ date: string; type: string; startTime?: string | null; endTime?: string | null }>;
+      }>(`/master-panel/team/${id}/availability`),
+    putAvailability: (
+      id: string,
+      data: { rules: Array<{ dayOfWeek: number; startTime: string; endTime: string }> },
+    ) => put(`/master-panel/team/${id}/availability`, data),
+    setDayAvailability: (
+      id: string,
+      data: { date: string; action: 'closed' | 'open' | 'clear'; startTime?: string; endTime?: string },
+    ) =>
+      put<{
+        overrides: Array<{ date: string; type: string; startTime?: string | null; endTime?: string | null }>;
+      }>(`/master-panel/team/${id}/availability/day`, data),
+  },
 };
+
+export async function uploadPhoto(file: File, size: number) {
+  const body = new FormData();
+  body.append('photo', file);
+  body.append('size', String(size));
+  return request<{ url: string; size: number }>('/admin/upload/photo', { method: 'POST', body });
+}
 
 export const adminApi = {
   stats: () => get<{ stats: DashboardStats }>('/admin/stats').then((r) => r.stats),
+  uploadPhoto,
   masters: {
     list: () => get<{ masters: MasterProfile[] }>('/admin/masters').then((r) => r.masters),
     create: (data: Record<string, unknown>) =>
@@ -122,6 +194,22 @@ export const adminApi = {
     update: (id: string, data: Record<string, unknown>) =>
       patch<{ master: MasterProfile }>(`/admin/masters/${id}`, data).then((r) => r.master),
     remove: (id: string) => del<void>(`/admin/masters/${id}`),
+    getAvailability: (id: string) =>
+      get<{
+        rules: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+        overrides: Array<{ date: string; type: string; startTime?: string | null; endTime?: string | null }>;
+      }>(`/admin/masters/${id}/availability`),
+    putAvailability: (
+      id: string,
+      data: { rules: Array<{ dayOfWeek: number; startTime: string; endTime: string }> },
+    ) => put(`/admin/masters/${id}/availability`, data),
+    setDayAvailability: (
+      id: string,
+      data: { date: string; action: 'closed' | 'open' | 'clear'; startTime?: string; endTime?: string },
+    ) =>
+      put<{
+        overrides: Array<{ date: string; type: string; startTime?: string | null; endTime?: string | null }>;
+      }>(`/admin/masters/${id}/availability/day`, data),
   },
   services: {
     list: () => get<{ services: Service[] }>('/admin/services').then((r) => r.services),
@@ -139,6 +227,9 @@ export const adminApi = {
       const qs = q.toString();
       return get<{ bookings: Booking[] }>(`/admin/bookings${qs ? `?${qs}` : ''}`).then((r) => r.bookings);
     },
+    update: (id: string, data: { status?: BookingStatus; startAt?: string }) =>
+      patch<{ booking: Booking }>(`/admin/bookings/${id}`, data).then((r) => r.booking),
+    remove: (id: string) => del<void>(`/admin/bookings/${id}`),
   },
   settings: {
     get: () => get<{ shopSettings: ShopSettings }>('/shop-settings').then((r) => r.shopSettings),

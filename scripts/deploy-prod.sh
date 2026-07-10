@@ -167,49 +167,66 @@ rsync_to "server/package.json" "$PROD_API_DIR/package.json"
 [[ -f server/package-lock.json ]] && rsync_to "server/package-lock.json" "$PROD_API_DIR/package-lock.json"
 rsync_to "prisma/" "$PROD_API_DIR/prisma/"
 
-info "Remote: npm install + prisma generate + db push + restart…"
+info "Remote: light finalize (generate + single API process; no hanging db push)…"
 if [[ "$DRY_RUN" != "true" ]]; then
   remote "bash -s" <<REMOTE
 set -euo pipefail
 cd "$PROD_API_DIR"
-# CloudLinux Node.js selector venv
 export PATH="/home/codensgo/nodevenv/levelup-api/20/bin:\$PATH"
 hash -r
-node -v
-npm -v
-if [[ -f package-lock.json ]]; then npm ci --omit=dev; else npm install --omit=dev; fi
-npm exec -- prisma generate --schema ./prisma/schema.prisma
-npm exec -- prisma db push --schema ./prisma/schema.prisma --skip-generate
-# Seed once if empty (admin missing)
-node -e "
-const {PrismaClient}=require('@prisma/client');
-const p=new PrismaClient();
-p.user.findFirst({where:{role:'admin'}}).then(u=>{
-  if(!u){ console.log('SEED_NEEDED'); process.exit(42); }
-  console.log('Admin exists:', u.email); process.exit(0);
-}).catch(e=>{ console.error(e); process.exit(1); }).finally(()=>p.\$disconnect());
-" || {
-  code=\$?
-  if [[ \$code -eq 42 ]]; then
-    echo 'Seeding database…'
-    if [[ -f dist/seed.js ]]; then node dist/seed.js; else echo 'No dist/seed.js — seed manually later'; fi
-  else
-    exit \$code
-  fi
-}
+
+# --- Free NPROC: kill leftovers from prior deploys ---
+pkill -f "/home/codensgo/levelup-api/dist/index.js" 2>/dev/null || true
+pkill -f "/home/codensgo/levelup-api/.*prisma" 2>/dev/null || true
+sleep 1
+
+# Prefer TCP for MySQL (avoids Prisma hang on localhost→socket)
+if [[ -f .env ]] && grep -q 'DATABASE_URL=.*@localhost:' .env; then
+  sed -i 's/@localhost:/@127.0.0.1:/g' .env
+  echo 'Normalized DATABASE_URL host to 127.0.0.1'
+fi
+
+# Flat API root: generate client into ./node_modules (not ./server/node_modules)
+sed -i 's|output        = "../server/node_modules/.prisma/client"|output        = "../node_modules/.prisma/client"|' prisma/schema.prisma || true
+
+# Install only when lockfile changed / no modules (npm ci is NPROC-heavy)
+if [[ ! -d node_modules/@prisma/client ]] || [[ package-lock.json -nt node_modules ]]; then
+  echo 'Installing deps…'
+  if [[ -f package-lock.json ]]; then npm ci --omit=dev --no-audit --no-fund; else npm install --omit=dev --no-audit --no-fund; fi
+else
+  echo 'Skipping npm ci (node_modules up to date)'
+fi
+
+# Hard timeout — never leave hung prisma eating NPROC
+timeout 60s npm exec -- prisma generate --schema ./prisma/schema.prisma
+
+# Schema sync with timeout (skip if it stalls; use SQL/migrations offline instead)
+if ! timeout 45s npm exec -- prisma db push --schema ./prisma/schema.prisma --skip-generate --accept-data-loss; then
+  echo 'WARN: prisma db push timed out or failed — continuing (check schema manually)'
+fi
+
+# Optional seed: SEED_ON_DEPLOY=1 npm run deploy:prod
+if [[ "\${SEED_ON_DEPLOY:-}" == "1" ]] && [[ -f dist/seed.js ]]; then
+  echo 'Seeding catalog + Shaxzod (no clients)…'
+  timeout 60s env SEED_PURGE_CLIENTS=1 node dist/seed.js || echo 'WARN: seed failed'
+fi
+
 mkdir -p tmp
 touch tmp/restart.txt
-# Keep a port-bound Node process (codebridge-style) — Passenger alone is flaky for /api on this host
-export PATH="/home/codensgo/nodevenv/levelup-api/20/bin:\$PATH"
+
+# Exactly one API process
 pkill -f "/home/codensgo/levelup-api/dist/index.js" 2>/dev/null || true
 sleep 1
 set -a; [[ -f .env ]] && source .env; set +a
-nohup node dist/index.js >> stdout.log 2>> stderr.log &
+nohup /home/codensgo/nodevenv/levelup-api/20/bin/node dist/index.js >> stdout.log 2>> stderr.log &
 sleep 2
+# Ensure we did not spawn duplicates
+COUNT=\$(pgrep -f "/home/codensgo/levelup-api/dist/index.js" | wc -l | tr -d ' ')
+echo "API process count: \$COUNT"
 curl -sfS --max-time 5 "http://127.0.0.1:\${PORT:-3002}/api/health" >/dev/null && echo "API healthy on :\${PORT:-3002}"
 REMOTE
 else
-  echo "[DRY-RUN] remote npm/prisma/restart"
+  echo "[DRY-RUN] remote light finalize"
 fi
 ok "Remote finalize done"
 

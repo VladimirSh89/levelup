@@ -3,7 +3,8 @@
 
 generator client {
   provider      = "prisma-client-js"
-  // Default output → server/node_modules/.prisma/client (local + cPanel api root)
+  // Keep client next to the server package (local + cPanel api root)
+  output        = "../server/node_modules/.prisma/client"
   binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x"]
 }
 
@@ -71,11 +72,14 @@ model MasterProfile {
   id              String   @id @default(cuid())
   userId          String   @unique
   locationId      String
+  nameRu          String?
   bio             String?  @db.Text
   photoUrl        String?
   specialtyTags   Json     @default("[]")
   instagramHandle String?
   isActive        Boolean  @default(true)
+  // Shop owner (e.g. Shaxzod) — can add/remove other masters
+  isOwner         Boolean  @default(false)
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

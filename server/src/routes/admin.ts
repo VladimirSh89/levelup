@@ -1,24 +1,63 @@
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { z } from "zod";
-import { BookingStatus, Locale, Prisma, Role } from "@prisma/client";
+import { AvailabilityOverrideType, BookingStatus, Locale, Prisma, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole, type AuthedRequest } from "../lib/auth";
 import { AppError, zodErrorMessage } from "../lib/errors";
 import { parseLocale } from "../lib/locale";
 import { serializeBooking, serializeMasterAdmin, serializeServiceAdmin } from "../lib/serialize";
 import { BOOKING_INCLUDE } from "../services/booking";
+import { dateOnlyUtc, dayOfWeekOf } from "../services/slots";
 
 const router = Router();
 const BCRYPT_ROUNDS = 10;
 
 router.use(requireAuth, requireRole(Role.admin));
 
+async function syncMasterServices(
+  tx: Prisma.TransactionClient,
+  masterId: string,
+  serviceIds: string[],
+): Promise<void> {
+  const uniqueIds = [...new Set(serviceIds)];
+  if (uniqueIds.length) {
+    const found = await tx.service.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true },
+    });
+    if (found.length !== uniqueIds.length) {
+      throw new AppError("One or more serviceIds are invalid", 400);
+    }
+  }
+
+  await tx.masterService.deleteMany({
+    where: {
+      masterId,
+      ...(uniqueIds.length ? { serviceId: { notIn: uniqueIds } } : {}),
+    },
+  });
+
+  for (const serviceId of uniqueIds) {
+    await tx.masterService.upsert({
+      where: { masterId_serviceId: { masterId, serviceId } },
+      update: {},
+      create: { masterId, serviceId },
+    });
+  }
+}
+
+const masterInclude = {
+  user: true,
+  location: true,
+  masterServices: { select: { serviceId: true } },
+} as const;
+
 /* ───────────────────────── Masters ───────────────────────── */
 
 router.get("/masters", async (_req, res) => {
   const masters = await prisma.masterProfile.findMany({
-    include: { user: true, location: true },
+    include: masterInclude,
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
   res.json({ masters: masters.map(serializeMasterAdmin) });
@@ -28,10 +67,12 @@ const createMasterSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().trim().min(1),
+  nameRu: z.string().trim().min(1).optional(),
   phone: z.string().trim().min(1).optional(),
-  locationId: z.string().min(1),
+  locationId: z.string().min(1).optional(),
   bio: z.string().optional(),
   photoUrl: z.string().optional(),
+  serviceIds: z.array(z.string().min(1)).optional(),
   specialtyTags: z.array(z.string()).optional(),
   instagramHandle: z.string().optional(),
   sortOrder: z.number().int().optional(),
@@ -50,9 +91,11 @@ router.post("/masters", async (req, res) => {
     res.status(409).json({ error: "An account with this email already exists" });
     return;
   }
-  const location = await prisma.location.findUnique({ where: { id: data.locationId } });
+  const location = data.locationId
+    ? await prisma.location.findUnique({ where: { id: data.locationId } })
+    : await prisma.location.findFirst({ where: { isActive: true }, orderBy: { createdAt: "asc" } });
   if (!location) {
-    res.status(400).json({ error: "locationId does not exist" });
+    res.status(400).json({ error: "No active location available" });
     return;
   }
 
@@ -61,17 +104,24 @@ router.post("/masters", async (req, res) => {
     const user = await tx.user.create({
       data: { email: data.email, passwordHash, name: data.name, phone: data.phone ?? null, role: Role.master },
     });
-    return tx.masterProfile.create({
+    const profile = await tx.masterProfile.create({
       data: {
         userId: user.id,
-        locationId: data.locationId,
+        locationId: location.id,
+        nameRu: data.nameRu ?? null,
         bio: data.bio ?? null,
         photoUrl: data.photoUrl ?? null,
         specialtyTags: data.specialtyTags ?? [],
         instagramHandle: data.instagramHandle ?? null,
         sortOrder: data.sortOrder ?? 0,
       },
-      include: { user: true, location: true },
+    });
+    if (data.serviceIds) {
+      await syncMasterServices(tx, profile.id, data.serviceIds);
+    }
+    return tx.masterProfile.findUniqueOrThrow({
+      where: { id: profile.id },
+      include: masterInclude,
     });
   });
 
@@ -80,9 +130,11 @@ router.post("/masters", async (req, res) => {
 
 const updateMasterSchema = z.object({
   name: z.string().trim().min(1).optional(),
+  nameRu: z.string().trim().min(1).nullable().optional(),
   phone: z.string().trim().min(1).nullable().optional(),
   bio: z.string().nullable().optional(),
   photoUrl: z.string().nullable().optional(),
+  serviceIds: z.array(z.string().min(1)).optional(),
   specialtyTags: z.array(z.string()).optional(),
   instagramHandle: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
@@ -102,7 +154,7 @@ router.patch("/masters/:id", async (req, res) => {
     return;
   }
 
-  const { name, phone, ...profileFields } = parsed.data;
+  const { name, phone, serviceIds, ...profileFields } = parsed.data;
   const updated = await prisma.$transaction(async (tx) => {
     if (name !== undefined || phone !== undefined) {
       await tx.user.update({
@@ -110,10 +162,16 @@ router.patch("/masters/:id", async (req, res) => {
         data: { ...(name !== undefined ? { name } : {}), ...(phone !== undefined ? { phone } : {}) },
       });
     }
-    return tx.masterProfile.update({
+    await tx.masterProfile.update({
       where: { id: master.id },
       data: profileFields,
-      include: { user: true, location: true },
+    });
+    if (serviceIds !== undefined) {
+      await syncMasterServices(tx, master.id, serviceIds);
+    }
+    return tx.masterProfile.findUniqueOrThrow({
+      where: { id: master.id },
+      include: masterInclude,
     });
   });
 
@@ -126,12 +184,161 @@ router.delete("/masters/:id", async (req, res) => {
     res.status(404).json({ error: "Master not found" });
     return;
   }
-  const updated = await prisma.masterProfile.update({
-    where: { id: master.id },
-    data: { isActive: false },
-    include: { user: true, location: true },
+
+  await prisma.$transaction(async (tx) => {
+    const bookings = await tx.booking.findMany({ where: { masterId: master.id }, select: { id: true } });
+    const bookingIds = bookings.map((b) => b.id);
+    if (bookingIds.length) {
+      await tx.bookingService.deleteMany({ where: { bookingId: { in: bookingIds } } });
+      await tx.booking.deleteMany({ where: { id: { in: bookingIds } } });
+    }
+    await tx.masterProfile.delete({ where: { id: master.id } });
+    await tx.user.delete({ where: { id: master.userId } });
   });
-  res.json({ master: serializeMasterAdmin(updated) });
+
+  res.status(204).send();
+});
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function serializeAvailability(
+  rules: Array<{ dayOfWeek: number; startTime: string; endTime: string }>,
+  overrides: Array<{ date: Date; type: AvailabilityOverrideType; startTime: string | null; endTime: string | null }>,
+) {
+  return {
+    rules: rules.map((r) => ({
+      dayOfWeek: r.dayOfWeek,
+      startTime: r.startTime,
+      endTime: r.endTime,
+    })),
+    overrides: overrides.map((o) => ({
+      date: o.date.toISOString().slice(0, 10),
+      type: o.type,
+      startTime: o.startTime,
+      endTime: o.endTime,
+    })),
+  };
+}
+
+router.get("/masters/:id/availability", async (req, res) => {
+  const master = await prisma.masterProfile.findUnique({ where: { id: req.params.id } });
+  if (!master) {
+    res.status(404).json({ error: "Master not found" });
+    return;
+  }
+  const [rules, overrides] = await Promise.all([
+    prisma.availabilityRule.findMany({ where: { masterId: master.id }, orderBy: [{ dayOfWeek: "asc" }] }),
+    prisma.availabilityOverride.findMany({ where: { masterId: master.id }, orderBy: { date: "asc" } }),
+  ]);
+  res.json(serializeAvailability(rules, overrides));
+});
+
+const putMasterAvailabilitySchema = z.object({
+  rules: z.array(
+    z.object({
+      dayOfWeek: z.number().int().min(0).max(6),
+      startTime: z.string().regex(TIME_RE),
+      endTime: z.string().regex(TIME_RE),
+    }),
+  ),
+});
+
+router.put("/masters/:id/availability", async (req, res) => {
+  const master = await prisma.masterProfile.findUnique({ where: { id: req.params.id } });
+  if (!master) {
+    res.status(404).json({ error: "Master not found" });
+    return;
+  }
+  const parsed = putMasterAvailabilitySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: zodErrorMessage(parsed.error) });
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.availabilityRule.deleteMany({ where: { masterId: master.id } });
+    if (parsed.data.rules.length) {
+      await tx.availabilityRule.createMany({
+        data: parsed.data.rules.map((r) => ({
+          masterId: master.id,
+          dayOfWeek: r.dayOfWeek,
+          startTime: r.startTime,
+          endTime: r.endTime,
+        })),
+      });
+    }
+  });
+
+  const [rules, overrides] = await Promise.all([
+    prisma.availabilityRule.findMany({ where: { masterId: master.id }, orderBy: [{ dayOfWeek: "asc" }] }),
+    prisma.availabilityOverride.findMany({ where: { masterId: master.id }, orderBy: { date: "asc" } }),
+  ]);
+  res.json(serializeAvailability(rules, overrides));
+});
+
+const dayOverrideSchema = z.object({
+  date: z.string().regex(DATE_RE),
+  action: z.enum(["closed", "open", "clear"]),
+  startTime: z.string().regex(TIME_RE).optional(),
+  endTime: z.string().regex(TIME_RE).optional(),
+});
+
+router.put("/masters/:id/availability/day", async (req, res) => {
+  const master = await prisma.masterProfile.findUnique({ where: { id: req.params.id } });
+  if (!master) {
+    res.status(404).json({ error: "Master not found" });
+    return;
+  }
+  const parsed = dayOverrideSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: zodErrorMessage(parsed.error) });
+    return;
+  }
+
+  const { date, action } = parsed.data;
+  const dateKey = dateOnlyUtc(date);
+
+  if (action === "clear") {
+    await prisma.availabilityOverride.deleteMany({ where: { masterId: master.id, date: dateKey } });
+  } else if (action === "closed") {
+    await prisma.availabilityOverride.upsert({
+      where: { masterId_date: { masterId: master.id, date: dateKey } },
+      update: { type: AvailabilityOverrideType.closed, startTime: null, endTime: null },
+      create: { masterId: master.id, date: dateKey, type: AvailabilityOverrideType.closed },
+    });
+  } else {
+    const dow = dayOfWeekOf(date);
+    const rule = await prisma.availabilityRule.findFirst({
+      where: { masterId: master.id, dayOfWeek: dow },
+    });
+    const startTime = parsed.data.startTime ?? rule?.startTime ?? "10:00";
+    const endTime = parsed.data.endTime ?? rule?.endTime ?? "18:30";
+    await prisma.availabilityOverride.upsert({
+      where: { masterId_date: { masterId: master.id, date: dateKey } },
+      update: { type: AvailabilityOverrideType.custom_hours, startTime, endTime },
+      create: {
+        masterId: master.id,
+        date: dateKey,
+        type: AvailabilityOverrideType.custom_hours,
+        startTime,
+        endTime,
+      },
+    });
+  }
+
+  const overrides = await prisma.availabilityOverride.findMany({
+    where: { masterId: master.id },
+    orderBy: { date: "asc" },
+  });
+  res.json({
+    overrides: overrides.map((o) => ({
+      date: o.date.toISOString().slice(0, 10),
+      type: o.type,
+      startTime: o.startTime,
+      endTime: o.endTime,
+    })),
+  });
 });
 
 /* ───────────────────────── Services ───────────────────────── */
@@ -339,6 +546,109 @@ router.get("/bookings", async (req: AuthedRequest, res) => {
   res.json({ bookings: bookings.map((b) => serializeBooking(b, locale, { includeClient: true })) });
 });
 
+const updateBookingSchema = z.object({
+  status: z.nativeEnum(BookingStatus).optional(),
+  startAt: z.string().datetime({ offset: true }).or(z.string().min(1)).optional(),
+});
+
+router.patch("/bookings/:id", async (req: AuthedRequest, res) => {
+  const parsed = updateBookingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: zodErrorMessage(parsed.error) });
+    return;
+  }
+  if (parsed.data.status === undefined && parsed.data.startAt === undefined) {
+    res.status(400).json({ error: "Provide status and/or startAt" });
+    return;
+  }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.id },
+    include: { master: { include: { location: { include: { settings: true } } } } },
+  });
+  if (!booking) {
+    res.status(404).json({ error: "Booking not found" });
+    return;
+  }
+
+  const locale = parseLocale(req);
+  const cutoffHours = booking.master.location.settings?.cancellationCutoffHours ?? 24;
+
+  try {
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const data: Prisma.BookingUpdateInput = {};
+
+        if (parsed.data.status !== undefined) {
+          data.status = parsed.data.status;
+          data.cancelledAt = parsed.data.status === BookingStatus.cancelled ? new Date() : null;
+        }
+
+        if (parsed.data.startAt !== undefined) {
+          const newStartAt = new Date(parsed.data.startAt);
+          if (Number.isNaN(newStartAt.getTime())) {
+            throw new AppError("Invalid start time", 400);
+          }
+          const durationMs = booking.endAt.getTime() - booking.startAt.getTime();
+          const newEndAt = new Date(newStartAt.getTime() + durationMs);
+
+          if (
+            parsed.data.status === undefined ||
+            parsed.data.status === BookingStatus.pending ||
+            parsed.data.status === BookingStatus.confirmed
+          ) {
+            const overlap = await tx.booking.findFirst({
+              where: {
+                id: { not: booking.id },
+                masterId: booking.masterId,
+                status: { in: [BookingStatus.pending, BookingStatus.confirmed] },
+                startAt: { lt: newEndAt },
+                endAt: { gt: newStartAt },
+              },
+              select: { id: true },
+            });
+            if (overlap) throw new AppError("This time slot is no longer available", 409);
+          }
+
+          data.startAt = newStartAt;
+          data.endAt = newEndAt;
+          data.cancellationDeadlineAt = new Date(newStartAt.getTime() - cutoffHours * 60 * 60 * 1000);
+        }
+
+        return tx.booking.update({
+          where: { id: booking.id },
+          data,
+          include: BOOKING_INCLUDE,
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    res.json({ booking: serializeBooking(updated, locale, { includeClient: true }) });
+  } catch (err) {
+    if (err instanceof AppError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+});
+
+router.delete("/bookings/:id", async (req, res) => {
+  const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+  if (!booking) {
+    res.status(404).json({ error: "Booking not found" });
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.bookingService.deleteMany({ where: { bookingId: booking.id } });
+    await tx.booking.delete({ where: { id: booking.id } });
+  });
+
+  res.status(204).send();
+});
+
 /* ───────────────────────── Shop settings ───────────────────────── */
 
 const shopSettingsSchema = z.object({
@@ -390,8 +700,6 @@ router.put("/shop-settings", async (req, res) => {
 });
 
 /* ───────────────────────── Holidays ───────────────────────── */
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 router.get("/holidays", async (req, res) => {
   const locationId = typeof req.query.locationId === "string" ? req.query.locationId : undefined;

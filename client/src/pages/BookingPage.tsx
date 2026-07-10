@@ -45,7 +45,7 @@ export default function BookingPage() {
     }
   }, [location.state, isAuthenticated]);
 
-  const { data: mastersData } = useQuery({ queryKey: ['masters'], queryFn: mastersApi.list });
+  const { data: mastersData } = useQuery({ queryKey: ['masters', locale], queryFn: mastersApi.list });
   const masters = mastersData && mastersData.length > 0 ? mastersData : FALLBACK_MASTERS;
 
   const resolvedMasterId = useMemo(() => {
@@ -53,9 +53,12 @@ export default function BookingPage() {
     return draft.masterId;
   }, [draft.masterId, masters]);
 
-  const { data: catalogServices } = useQuery({ queryKey: ['services'], queryFn: servicesApi.list });
+  const { data: catalogServices } = useQuery({
+    queryKey: ['services', locale],
+    queryFn: servicesApi.list,
+  });
   const { data: masterServices } = useQuery({
-    queryKey: ['master-services', resolvedMasterId],
+    queryKey: ['master-services', resolvedMasterId, locale],
     queryFn: () => mastersApi.services(resolvedMasterId!),
     enabled: Boolean(resolvedMasterId) && draft.step >= 2,
   });
@@ -474,9 +477,13 @@ function StepConfirm({
           <div className="flex items-start justify-between gap-4 border-b border-outline-variant pb-4">
             <dt className="font-label text-label-caps uppercase text-on-surface-variant">{t('booking.summaryServices')}</dt>
             <dd className="text-right font-body text-body-md text-on-surface">
-              {services.map((s) => (
-                <div key={s.id}>{s.name || (locale === 'ru' ? s.nameRu : s.nameEn)}</div>
-              ))}
+              {services.map((s) => {
+                const label =
+                  locale === 'ru'
+                    ? s.nameRu || s.name || s.nameEn
+                    : s.nameEn || s.name;
+                return <div key={s.id}>{label}</div>;
+              })}
             </dd>
           </div>
 

@@ -9,6 +9,7 @@ import mastersRouter from "./routes/masters";
 import bookingsRouter from "./routes/bookings";
 import masterPanelRouter from "./routes/masterPanel";
 import adminRouter from "./routes/admin";
+import uploadRouter from "./routes/upload";
 import publicRouter from "./routes/public";
 
 function isDatabaseConnectivityError(err: unknown): boolean {
@@ -42,6 +43,7 @@ export function createApp(): Express {
   app.use("/api/bookings", bookingsRouter);
   app.use("/api/master-panel", masterPanelRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/admin/upload", uploadRouter);
   app.use("/api", publicRouter);
 
   app.use((req, res) => {

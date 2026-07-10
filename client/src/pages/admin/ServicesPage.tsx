@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Button from '@/components/Button';
 import FormField from '@/components/FormField';
+import IconPicker from '@/components/IconPicker';
 import { adminApi } from '@/lib/api';
 import { FALLBACK_SERVICES } from '@/lib/mockData';
 import { cn, formatDuration, formatPriceCents } from '@/lib/utils';
@@ -151,7 +152,14 @@ export default function ServicesPage() {
           <tbody>
             {services.map((service) => (
               <tr key={service.id} className="border-t border-outline-variant font-body text-body-md text-on-surface">
-                <td className="px-4 py-3">{locale === 'ru' ? service.nameRu : service.nameEn}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {service.icon && (
+                      <span className="material-symbols-outlined text-[20px] text-primary">{service.icon}</span>
+                    )}
+                    {locale === 'ru' ? service.nameRu : service.nameEn}
+                  </div>
+                </td>
                 <td className="px-4 py-3 font-label text-primary">{formatPriceCents(service.basePriceCents)}</td>
                 <td className="px-4 py-3">{formatDuration(service.baseDurationMinutes, t('common.min'))}</td>
                 <td className="px-4 py-3">
@@ -199,7 +207,11 @@ export default function ServicesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField label={t('admin.services.category')} name="category" value={form.category} onChange={(v) => setForm((f) => ({ ...f, category: v }))} />
-                <FormField label={t('admin.services.icon')} name="icon" value={form.icon} onChange={(v) => setForm((f) => ({ ...f, icon: v }))} />
+                <IconPicker
+                  label={t('admin.services.icon')}
+                  value={form.icon}
+                  onChange={(icon) => setForm((f) => ({ ...f, icon }))}
+                />
               </div>
 
               <label className="flex items-center gap-3 font-label text-label-caps uppercase text-on-surface-variant">

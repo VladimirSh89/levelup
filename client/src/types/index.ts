@@ -10,6 +10,8 @@ export interface User {
   role: Role;
   preferredLocale: Locale;
   createdAt?: string;
+  isOwner?: boolean;
+  masterId?: string | null;
 }
 
 export interface Service {
@@ -35,11 +37,15 @@ export interface MasterProfile {
   id: string;
   userId?: string;
   name: string;
+  nameEn?: string;
+  nameRu?: string;
   bio?: string | null;
   photoUrl?: string | null;
   specialtyTags: string[];
+  serviceIds?: string[];
   instagramHandle?: string | null;
   isActive?: boolean;
+  isOwner?: boolean;
   sortOrder?: number;
   services?: Service[];
   rating?: number;
