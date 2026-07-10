@@ -1,17 +1,26 @@
 import "./loadEnv";
 import { createApp } from "./app";
 
+const isProd = process.env.NODE_ENV === "production";
+
+// IMPORTANT: on managed hosts (Passenger/CloudLinux) exiting the process on a
+// transient error triggers an instant respawn. A recurring error then becomes a
+// fork/restart storm that exhausts the account's process (NPROC) limit. In
+// production we log and keep serving (DB errors already surface as HTTP 503);
+// only in dev do we hard-exit for a fast feedback loop.
 process.on("unhandledRejection", (reason: unknown) => {
   // eslint-disable-next-line no-console
-  console.error("[levelup] unhandledRejection — process will exit", reason);
-  process.exitCode = 1;
-  setImmediate(() => process.exit(1));
+  console.error("[levelup] unhandledRejection", reason);
+  if (!isProd) {
+    process.exitCode = 1;
+    setImmediate(() => process.exit(1));
+  }
 });
 
 process.on("uncaughtException", (err: Error) => {
   // eslint-disable-next-line no-console
-  console.error("[levelup] uncaughtException — process will exit", err);
-  process.exit(1);
+  console.error("[levelup] uncaughtException", err);
+  if (!isProd) process.exit(1);
 });
 
 const app = createApp();
@@ -29,6 +38,9 @@ server.on("error", (err: NodeJS.ErrnoException) => {
     console.error(
       `[levelup] Port ${port} is already in use. Stop the other process, e.g. \`lsof -ti :${port} | xargs kill\`, or set PORT in server/.env.`,
     );
+    // Do not throw/respawn — another instance is already serving.
+    return;
   }
-  throw err;
+  // eslint-disable-next-line no-console
+  console.error("[levelup] server error", err);
 });

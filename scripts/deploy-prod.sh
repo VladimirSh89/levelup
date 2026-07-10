@@ -211,19 +211,23 @@ if [[ "\${SEED_ON_DEPLOY:-}" == "1" ]] && [[ -f dist/seed.js ]]; then
   timeout 60s env SEED_PURGE_CLIENTS=1 node dist/seed.js || echo 'WARN: seed failed'
 fi
 
+# --- Single process model: Passenger only (no manual nohup) ---
+# Kill leftover MANUAL node instances from older deploys; Passenger owns the app.
+# This removes the double-run + crash-loop that exhausted the NPROC limit.
+pkill -f "nohup.*levelup-api/dist/index.js" 2>/dev/null || true
+for pid in \$(pgrep -f "/home/codensgo/levelup-api/dist/index.js" 2>/dev/null || true); do
+  ppid=\$(ps -o ppid= -p "\$pid" 2>/dev/null | tr -d ' ' || echo 0)
+  pcomm=\$(ps -o comm= -p "\$ppid" 2>/dev/null || echo '')
+  # Only kill manual ones (parented by bash/init); leave Passenger/ruby-managed alone
+  if [[ "\$pcomm" != *Passenger* && "\$pcomm" != *ruby* ]]; then
+    kill "\$pid" 2>/dev/null || true
+  fi
+done
+
+# Graceful Passenger restart — single supervised instance
 mkdir -p tmp
 touch tmp/restart.txt
-
-# Exactly one API process
-pkill -f "/home/codensgo/levelup-api/dist/index.js" 2>/dev/null || true
-sleep 1
-set -a; [[ -f .env ]] && source .env; set +a
-nohup /home/codensgo/nodevenv/levelup-api/20/bin/node dist/index.js >> stdout.log 2>> stderr.log &
-sleep 2
-# Ensure we did not spawn duplicates
-COUNT=\$(pgrep -f "/home/codensgo/levelup-api/dist/index.js" | wc -l | tr -d ' ')
-echo "API process count: \$COUNT"
-curl -sfS --max-time 5 "http://127.0.0.1:\${PORT:-3002}/api/health" >/dev/null && echo "API healthy on :\${PORT:-3002}"
+echo "Passenger restart requested (tmp/restart.txt)"
 REMOTE
 else
   echo "[DRY-RUN] remote light finalize"
