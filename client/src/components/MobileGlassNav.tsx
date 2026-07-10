@@ -1,20 +1,15 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import { useAuth } from '@/lib/auth';
 import { roleHome } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-type Tab = {
-  key: string;
-  label: string;
-  icon: string;
-  iconFilled?: boolean;
-  to?: string;
-  hash?: string;
-  match?: (path: string) => boolean;
-};
+function sectionFromHash(hash: string): string {
+  return hash.replace(/^#/, '').trim();
+}
 
 export default function MobileGlassNav() {
   const { t } = useTranslation();
@@ -22,11 +17,17 @@ export default function MobileGlassNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/';
+  const isBooking = location.pathname.startsWith('/book');
+  const routeSection = sectionFromHash(location.hash);
+  const [pendingSection, setPendingSection] = useState<string | null>(null);
 
-  // Hide on booking flow — StickyBookingBar owns the bottom
-  if (location.pathname.startsWith('/book')) return null;
-  // Admin has its own chrome
+  useEffect(() => {
+    setPendingSection(null);
+  }, [location.pathname, location.hash]);
+
   if (location.pathname.startsWith('/admin')) return null;
+
+  const activeSection = pendingSection ?? routeSection;
 
   const accountTo = isAuthenticated && user ? roleHome(user.role) : '/login';
   const accountLabel = isAuthenticated
@@ -37,119 +38,156 @@ export default function MobileGlassNav() {
         : t('nav.you')
     : t('nav.you');
 
-  const tabs: Tab[] = [
+  const goHome = () => {
+    setPendingSection(null);
+    navigate('/');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goHash = (hash: string) => {
+    const section = sectionFromHash(hash);
+    setPendingSection(section);
+    if (isHome) {
+      document.querySelector(`#${section}`)?.scrollIntoView({ behavior: 'smooth' });
+      navigate(`/#${section}`, { replace: true });
+      return;
+    }
+    navigate(`/#${section}`);
+  };
+
+  // Booking flow: collapsed — home only (expands full menu when leaving /book)
+  if (isBooking) {
+    return (
+      <nav
+        aria-label={t('nav.menu')}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
+      >
+        <motion.button
+          type="button"
+          onClick={goHome}
+          aria-label={t('nav.home')}
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="liquid-glass pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-primary"
+        >
+          <span className="material-symbols-outlined text-[26px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            home
+          </span>
+        </motion.button>
+      </nav>
+    );
+  }
+
+  const tabs = [
     {
       key: 'home',
       label: t('nav.home'),
       icon: 'home',
-      to: '/',
-      match: (p) => p === '/',
+      active: isHome && !activeSection,
+      onClick: goHome,
     },
     {
       key: 'services',
       label: t('nav.services'),
       icon: 'content_cut',
-      hash: '#services',
-      match: () => isHome && location.hash === '#services',
+      active: isHome && activeSection === 'services',
+      onClick: () => goHash('services'),
     },
     {
       key: 'book',
       label: t('nav.book'),
       icon: 'calendar_month',
+      active: false,
       to: '/book',
-      match: (p) => p.startsWith('/book'),
     },
     {
       key: 'you',
       label: accountLabel,
       icon: isAuthenticated ? 'person' : 'login',
+      active:
+        location.pathname.startsWith('/account') ||
+        location.pathname.startsWith('/login') ||
+        location.pathname.startsWith('/register') ||
+        location.pathname.startsWith('/master'),
       to: accountTo,
-      match: (p) =>
-        p.startsWith('/account') ||
-        p.startsWith('/login') ||
-        p.startsWith('/register') ||
-        p.startsWith('/master') ||
-        (user?.role === 'admin' && p.startsWith('/admin')),
     },
-  ];
-
-  const goHash = (hash: string) => {
-    if (isHome) {
-      const el = document.querySelector(hash);
-      el?.scrollIntoView({ behavior: 'smooth' });
-      window.history.replaceState(null, '', hash);
-      return;
-    }
-    navigate({ pathname: '/', hash: hash.replace(/^#/, '') });
-  };
+  ] as const;
 
   return (
     <nav
       aria-label={t('nav.menu')}
       className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
     >
-      <div className="liquid-glass pointer-events-auto flex w-full max-w-md items-stretch gap-0.5 rounded-full p-1.5">
-        {tabs.map((tab) => {
-          const active = tab.match?.(location.pathname) ?? false;
-          const content = (
-            <>
-              {active && (
-                <motion.span
-                  layoutId="mobile-glass-pill"
-                  className="absolute inset-0 rounded-full bg-primary/20 ring-1 ring-primary/40"
-                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                />
-              )}
-              <span
-                className={cn(
-                  'material-symbols-outlined relative z-10 text-[22px]',
-                  active ? 'text-primary' : 'text-on-surface-variant',
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key="expanded"
+          initial={{ opacity: 0, y: 12, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8, scale: 0.96 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+          className="liquid-glass pointer-events-auto flex w-full max-w-md items-stretch gap-0.5 rounded-full p-1.5"
+        >
+          {tabs.map((tab) => {
+            const active = tab.active;
+            const inner = (
+              <>
+                {active && (
+                  <motion.span
+                    layoutId="mobile-glass-pill"
+                    className="absolute inset-0 rounded-full bg-primary/20 ring-1 ring-primary/40"
+                    transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                  />
                 )}
-                style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
-              >
-                {tab.icon}
-              </span>
-              <span
-                className={cn(
-                  'relative z-10 max-w-full truncate font-label text-[9px] uppercase tracking-[0.12em]',
-                  active ? 'text-primary' : 'text-on-surface-variant',
-                )}
-              >
-                {tab.label}
-              </span>
-            </>
-          );
+                <span
+                  className={cn(
+                    'material-symbols-outlined relative z-10 text-[22px]',
+                    active ? 'text-primary' : 'text-on-surface-variant',
+                  )}
+                  style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                >
+                  {tab.icon}
+                </span>
+                <span
+                  className={cn(
+                    'relative z-10 max-w-full truncate font-label text-[9px] uppercase tracking-[0.12em]',
+                    active ? 'text-primary' : 'text-on-surface-variant',
+                  )}
+                >
+                  {tab.label}
+                </span>
+              </>
+            );
 
-          const className = cn(
-            'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-2 py-2 transition-colors',
-          );
+            const className =
+              'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-2 py-2 transition-colors';
 
-          if (tab.hash) {
+            if ('onClick' in tab && tab.onClick) {
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={className}
+                  onClick={tab.onClick}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  {inner}
+                </button>
+              );
+            }
+
             return (
-              <button
+              <Link
                 key={tab.key}
-                type="button"
+                to={'to' in tab ? tab.to! : '/'}
                 className={className}
-                onClick={() => goHash(tab.hash!)}
                 aria-current={active ? 'page' : undefined}
               >
-                {content}
-              </button>
+                {inner}
+              </Link>
             );
-          }
-
-          return (
-            <Link
-              key={tab.key}
-              to={tab.to!}
-              className={className}
-              aria-current={active ? 'page' : undefined}
-            >
-              {content}
-            </Link>
-          );
-        })}
-      </div>
+          })}
+        </motion.div>
+      </AnimatePresence>
     </nav>
   );
 }

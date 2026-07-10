@@ -31,7 +31,7 @@ export default function StickyBookingBar({
   const { t } = useTranslation();
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-primary bg-surface-container-lowest/98 backdrop-blur-sm pb-[env(safe-area-inset-bottom)] md:pb-0">
+    <div className="fixed inset-x-0 bottom-[4.75rem] z-40 border-t-2 border-primary bg-surface-container-lowest/98 backdrop-blur-sm md:bottom-0 md:pb-0 pb-0">
       <div className="container-page flex items-center justify-between gap-3 py-3 md:gap-4 md:py-4">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           {showBack && onBack && (

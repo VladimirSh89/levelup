@@ -40,7 +40,7 @@ function BookingLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <TopNav />
-      <main className="flex-1 pb-32 pt-[calc(4.5rem+env(safe-area-inset-top))] md:pb-28 md:pt-20">
+      <main className="flex-1 pb-52 pt-[calc(4.5rem+env(safe-area-inset-top))] md:pb-28 md:pt-20">
         {children}
       </main>
       <MobileGlassNav />
