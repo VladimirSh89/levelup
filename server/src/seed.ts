@@ -228,7 +228,7 @@ async function main() {
     const clients = await prisma.user.findMany({ where: { role: Role.client }, select: { id: true, email: true } });
     if (clients.length) {
       const ids = clients.map((c) => c.id);
-      const bookings = await prisma.booking.findMany({ where: { clientId: { in: ids } }, select: { id: true } });
+      const bookings = await prisma.booking.findMany({ where: { clientUserId: { in: ids } }, select: { id: true } });
       const bookingIds = bookings.map((b) => b.id);
       if (bookingIds.length) {
         await prisma.bookingService.deleteMany({ where: { bookingId: { in: bookingIds } } });
